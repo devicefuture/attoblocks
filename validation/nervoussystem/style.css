@@ -1,0 +1,15 @@
+@import url("fonts/fonts.css");
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family: "Lexend Deca";
+}

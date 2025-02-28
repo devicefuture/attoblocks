@@ -97,7 +97,7 @@ export class ControllerBlock extends Block {
     }
 }
 
-export class StatementBlock extends Block {
+export class CommandBlock extends Block {
     constructor(value, bg = undefined, fg = undefined) {
         super(value, bg, fg);
 
@@ -152,7 +152,7 @@ export class StatementBlock extends Block {
     drop() {
         for (var thing of ns.things) {
             if (
-                (thing instanceof ControllerBlock || thing instanceof StatementBlock) && !thing.downstreamBlock &&
+                (thing instanceof ControllerBlock || thing instanceof CommandBlock) && !thing.downstreamBlock &&
                 thing.x >= this.x - 20 && thing.x < this.x + 20 &&
                 thing.y + thing.height >= this.y - 20 && thing.y < this.y - 20
             ) {
@@ -166,7 +166,7 @@ export class StatementBlock extends Block {
     }
 }
 
-export class StatementBlockWithArguments extends StatementBlock {
+export class CommandBlockWithArguments extends CommandBlock {
     constructor(value, bg = undefined, fg = undefined) {
         super(value, bg, fg);
 
@@ -230,7 +230,7 @@ export class ArgumentBlock extends Block {
     connectUnder(block) {
         this.upstreamBlock = block;
 
-        if (block instanceof StatementBlockWithArguments) {
+        if (block instanceof CommandBlockWithArguments) {
             block.firstArgumentBlock = this;
         } else {
             block.downstreamBlock = this;
@@ -250,7 +250,7 @@ export class ArgumentBlock extends Block {
         super.drag(deltaX, deltaY);
 
         if (this.upstreamBlock && byUser) {
-            if (this.upstreamBlock instanceof StatementBlockWithArguments) {
+            if (this.upstreamBlock instanceof CommandBlockWithArguments) {
                 this.upstreamBlock.firstArgumentBlock = null;
             } else {
                 this.upstreamBlock.downstreamBlock = null;
@@ -267,7 +267,7 @@ export class ArgumentBlock extends Block {
             if (
                 (
                     (thing instanceof ArgumentBlock && !thing.downstreamBlock) ||
-                    (thing instanceof StatementBlockWithArguments && !thing.firstArgumentBlock)
+                    (thing instanceof CommandBlockWithArguments && !thing.firstArgumentBlock)
                 ) &&
                 thing.x + thing.width >= this.x - 20 && thing.x + thing.width < this.x + 20 &&
                 thing.y >= this.y - 20 && thing.y < this.y + 20

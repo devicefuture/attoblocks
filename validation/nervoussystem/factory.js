@@ -23,11 +23,11 @@ export const COLOURS = {
 export var tokens = {};
 
 ["if", "else", "else if", "for", "repeat", "while", "until", "delay"].forEach(function(name) {
-    tokens[name] = () => new blocks.StatementBlockWithArguments(name, COLOURS.darkBlue, COLOURS.white);
+    tokens[name] = () => new blocks.CommandBlockWithArguments(name, COLOURS.darkBlue, COLOURS.white);
 });
 
 ["end", "next", "loop", "return", "break", "continue", "stop"].forEach(function(name) {
-    tokens[name] = () => new blocks.StatementBlock(name, COLOURS.darkBlue, COLOURS.white);
+    tokens[name] = () => new blocks.CommandBlock(name, COLOURS.darkBlue, COLOURS.white);
 });
 
 ["to", "step"].forEach(function(name) {
@@ -35,11 +35,11 @@ export var tokens = {};
 });
 
 ["forward", "backward", "left", "right", "angle"].forEach(function(name) {
-    tokens[name] = () => new blocks.StatementBlockWithArguments(name, COLOURS.darkGreen, COLOURS.white);
+    tokens[name] = () => new blocks.CommandBlockWithArguments(name, COLOURS.darkGreen, COLOURS.white);
 });
 
 ["penup", "pendown"].forEach(function(name) {
-    tokens[name] = () => new blocks.StatementBlock(name, COLOURS.darkGreen, COLOURS.white);
+    tokens[name] = () => new blocks.CommandBlock(name, COLOURS.darkGreen, COLOURS.white);
 });
 
 ["+", "-", "*", "/", "div", "mod", ";", "&", "|", "~"].forEach(function(name) {
@@ -63,7 +63,7 @@ for (var i = 0; i <= 9; i++) {
 export function processTokenList(tokenList, useControllerBlock = true) {
     var firstBlock = useControllerBlock ? new blocks.ControllerBlock() : null;
     var lastBlock = firstBlock;
-    var lastStatement = null;
+    var lastCommand = null;
 
     if (firstBlock) {
         ns.things.push(firstBlock);
@@ -79,9 +79,9 @@ export function processTokenList(tokenList, useControllerBlock = true) {
         }
 
         if (lastBlock) {
-            if (lastBlock instanceof blocks.ArgumentBlock && block instanceof blocks.StatementBlock) {
-                if (lastStatement) {
-                    block.connectUnder(lastStatement);
+            if (lastBlock instanceof blocks.ArgumentBlock && block instanceof blocks.CommandBlock) {
+                if (lastCommand) {
+                    block.connectUnder(lastCommand);
                 }
             } else {
                 block.connectUnder(lastBlock);
@@ -90,8 +90,8 @@ export function processTokenList(tokenList, useControllerBlock = true) {
 
         lastBlock = block;
 
-        if (block instanceof blocks.StatementBlock) {
-            lastStatement = block;
+        if (block instanceof blocks.CommandBlock) {
+            lastCommand = block;
         }
     }
 

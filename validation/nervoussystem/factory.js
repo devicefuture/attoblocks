@@ -60,10 +60,14 @@ for (var i = 0; i <= 9; i++) {
     })(i);
 }
 
-export function processTokenList(tokenList) {
-    var firstBlock = null;
-    var lastBlock = null;
+export function processTokenList(tokenList, useControllerBlock = true) {
+    var firstBlock = useControllerBlock ? new blocks.ControllerBlock() : null;
+    var lastBlock = firstBlock;
     var lastStatement = null;
+
+    if (firstBlock) {
+        ns.things.push(firstBlock);
+    }
 
     for (var name of tokenList) {
         var block = (tokens[name] || (() => new blocks.ArgumentBlock(name, COLOURS.lightGrey, COLOURS.black)))();

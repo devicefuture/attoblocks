@@ -1,5 +1,7 @@
 import * as ns from "./script.js";
 
+export var nextZ = 1;
+
 export class Block {
     constructor(value, bg = "#777777", fg = "#ffffff") {
         this.value = value;
@@ -27,8 +29,6 @@ export class Block {
         return ns.textMetrics(this.value, 3).fontBoundingBoxDescent + 12;
     }
 
-    connectTo(block) {}
-
     render() {
         ns.setColour(this.bg);
         ns.fillRoundedRect(this.renderedX, this.renderedY, this.width, this.height, 12);
@@ -37,12 +37,64 @@ export class Block {
         ns.drawText(this.value, this.renderedX + 6, this.renderedY + 6, 3);
     }
 
+    bringToFront() {
+        this.z = nextZ++;
+    }
+
     drag(deltaX, deltaY, byUser = true) {
         this.x += deltaX;
         this.y += deltaY;
     }
 
     drop() {}
+}
+
+export class ControllerBlock extends Block {
+    constructor() {
+        super("", "#cccccc");
+
+        this.downstreamBlock = null;
+    }
+
+    get width() {
+        return 280;
+    }
+
+    get height() {
+        return 80;
+    }
+
+    render() {
+        ns.setColour("#555555");
+        ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
+
+        super.render();
+
+        ns.setColour("#333333");
+        ns.drawText("attoblocks", this.renderedX + 8, this.renderedY + 8, 1);
+
+        for (var i = 0; i < 5; i++) {
+            ns.setColour("#777777");
+            ns.fillRoundedRect(this.renderedX + 24 + (i * 48), this.renderedY + 28, 32, 32, 16);
+            ns.drawText(["run", "stop", "speed", "step", "link"][i], this.renderedX + 24 + (i * 48), this.renderedY + 64, 0.8);
+        }
+    }
+
+    moveDownstreamsUnderSelf() {
+        this.downstreamBlock?.moveUnder(this);
+    }
+
+    bringToFront() {
+        super.bringToFront();
+
+        this.downstreamBlock?.bringToFront();
+    }
+
+    drag(deltaX, deltaY, byUser = true) {
+        super.drag(deltaX, deltaY);
+
+        this.downstreamBlock?.drag(deltaX, deltaY, byUser = false);
+    }
 }
 
 export class StatementBlock extends Block {
@@ -80,6 +132,12 @@ export class StatementBlock extends Block {
         this.moveDownstreamsUnderSelf();
     }
 
+    bringToFront() {
+        super.bringToFront();
+
+        this.downstreamBlock?.bringToFront();
+    }
+
     drag(deltaX, deltaY, byUser = true) {
         super.drag(deltaX, deltaY);
 
@@ -94,11 +152,14 @@ export class StatementBlock extends Block {
     drop() {
         for (var thing of ns.things) {
             if (
-                thing instanceof StatementBlock && !thing.downstreamBlock &&
+                (thing instanceof ControllerBlock || thing instanceof StatementBlock) && !thing.downstreamBlock &&
                 thing.x >= this.x - 20 && thing.x < this.x + 20 &&
-                thing.y >= this.y - this.height - 20 && thing.y < this.y - 20
+                thing.y + thing.height >= this.y - 20 && thing.y < this.y - 20
             ) {
                 this.connectUnder(thing);
+
+                new Audio("media/click.mp3").play();
+
                 break;
             }
         }
@@ -123,6 +184,13 @@ export class StatementBlockWithArguments extends StatementBlock {
         super.moveDownstreamsUnderSelf();
 
         this.firstArgumentBlock?.moveUnder(this);
+    }
+
+    bringToFront() {
+        super.bringToFront();
+
+        this.downstreamBlock?.bringToFront();
+        this.firstArgumentBlock?.bringToFront();
     }
 
     drag(deltaX, deltaY, byUser = true) {
@@ -172,6 +240,12 @@ export class ArgumentBlock extends Block {
         this.moveDownstreamsUnderSelf();
     }
 
+    bringToFront() {
+        super.bringToFront();
+
+        this.downstreamBlock?.bringToFront();
+    }
+
     drag(deltaX, deltaY, byUser = true) {
         super.drag(deltaX, deltaY);
 
@@ -199,6 +273,8 @@ export class ArgumentBlock extends Block {
                 thing.y >= this.y - 20 && thing.y < this.y + 20
             ) {
                 this.connectUnder(thing);
+
+                new Audio("media/click.mp3").play();
 
                 break;
             }

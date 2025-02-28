@@ -5,7 +5,6 @@ export var context = null;
 export var things = [];
 
 export var draggingThing = null;
-export var nextZ = 1;
 
 var lastPointerX = 0;
 var lastPointerY = 0;
@@ -121,16 +120,14 @@ window.addEventListener("load", async function() {
         lastPointerX = event.pageX;
         lastPointerY = event.pageY;
 
-        draggingThing = things.find((thing) => (
+        draggingThing = [...things].sort((a, b) => b.z - a.z).find((thing) => (
             event.pageX >= thing.renderedX &&
             event.pageY >= thing.renderedY &&
             event.pageX < thing.renderedX + thing.width &&
             event.pageY < thing.renderedY + thing.height
         ));
 
-        if (draggingThing) {
-            draggingThing.z = nextZ++;
-        }
+        draggingThing?.bringToFront();
     });
 
     document.body.addEventListener("pointermove", function(event) {
@@ -148,3 +145,5 @@ window.addEventListener("load", async function() {
         draggingThing = null;
     });
 });
+
+new Audio("media/click.mp3").load(); // Preload clicking sound

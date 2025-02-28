@@ -1,4 +1,4 @@
-import * as blocks from "./blocks.js";
+import * as factory from "./factory.js";
 
 export var workspace = null;
 export var context = null;
@@ -57,16 +57,16 @@ export function fillRoundedRect(x, y, width, height, radius) {
 }
 
 function render() {
-    var maxWorkspaceWidth = window.innerWidth;
-    var maxWorkspaceHeight = window.innerHeight;
+    var maxWorkspaceWidth = window.innerWidth - 10;
+    var maxWorkspaceHeight = window.innerHeight - 10;
 
     for (var thing of things) {
-        if (thing.renderedX + thing.width > maxWorkspaceWidth) {
-            maxWorkspaceWidth = thing.renderedX + thing.width;
+        if (thing.renderedX + thing.width + 10 > maxWorkspaceWidth) {
+            maxWorkspaceWidth = thing.renderedX + thing.width + 10;
         }
 
-        if (thing.renderedY + thing.height > maxWorkspaceHeight) {
-            maxWorkspaceHeight = thing.renderedY + thing.height;
+        if (thing.renderedY + thing.height + 10 > maxWorkspaceHeight) {
+            maxWorkspaceHeight = thing.renderedY + thing.height + 10;
         }
     }
 
@@ -80,62 +80,42 @@ function render() {
     requestAnimationFrame(render);
 }
 
-window.addEventListener("load", function() {
+window.addEventListener("load", async function() {
+    await document.fonts.load("1rem Brass Mono");
+
     workspace = document.querySelector("#workspace");
     context = workspace.getContext("2d");
 
-    for (var i = 0; i < 3; i++) {
-        var testBlock = new blocks.StatementBlock(["end", "next", "loop"][i]);
-
-        testBlock.x = 10;
-        testBlock.y = 10 + (i * 80);
-    
-        things.push(testBlock);
-    }
-
-    for (var i = 0; i < 3; i++) {
-        var testBlock = new blocks.StatementBlockWithArguments(["if", "for", "while"][i]);
-
-        testBlock.x = 250;
-        testBlock.y = 10 + (i * 80);
-    
-        things.push(testBlock);
-    }
-
-    for (var i = 0; i < 3; i++) {
-        var testBlock = new blocks.StatementBlockWithArguments(["forward", "left", "right"][i]);
-
-        testBlock.x = 500;
-        testBlock.y = 10 + (i * 80);
-    
-        things.push(testBlock);
-    }
-
-    var lastX = 0;
-
-    for (var i = 0; i < 5; i++) {
-        var testBlock = new blocks.ArgumentBlock(["i", "=", "to", "step", "true"][i]);
-
-        testBlock.x = lastX + 10;
-        testBlock.y = 300;
-
-        lastX += testBlock.width + 20;
-    
-        things.push(testBlock);
-    }
-
-    for (var i = 0; i < 10; i++) {
-        var testBlock = new blocks.ArgumentBlock(String(i));
-
-        testBlock.x = 10 + (i * 80);
-        testBlock.y = 400;
-
-        lastX += testBlock.width + 20;
-    
-        things.push(testBlock);
-    }
-
     render();
+
+    var block1 = factory.processTokenList([
+        "while", "score", "<", "1", "0", "0",
+        "pendown",
+        "forward", "2", "0",
+        "left", "4", "5", "+", "(", "count", "*", "3", ")",
+        "penup",
+        "if", "count", "=", "score", "/", "2",
+        "break",
+        "end",
+        "loop"
+    ]);
+
+    block1.x = 100;
+    block1.y = 100;
+
+    block1.moveDownstreamsUnderSelf();
+    
+    var block2 = factory.processTokenList([
+        "for", "i", "=", "1", "to", "1", "0", "step", "2",
+        "right", "1", "0", "-", "i",
+        "forward", "5",
+        "next",
+    ]);
+
+    block2.x = 500;
+    block2.y = 600;
+
+    block2.moveDownstreamsUnderSelf();
 
     document.body.addEventListener("pointerdown", function(event) {
         lastPointerX = event.pageX;

@@ -1,6 +1,7 @@
 import * as factory from "./factory.js";
 
 export var workspace = null;
+export var explodedViewInput = null;
 export var context = null;
 export var things = [];
 
@@ -83,6 +84,7 @@ window.addEventListener("load", async function() {
     await document.fonts.load("1rem Brass Mono");
 
     workspace = document.querySelector("#workspace");
+    explodedViewInput = document.querySelector("#explodedView");
     context = workspace.getContext("2d");
 
     render();
@@ -116,7 +118,7 @@ window.addEventListener("load", async function() {
 
     block2.moveDownstreamsUnderSelf();
 
-    document.body.addEventListener("pointerdown", function(event) {
+    workspace.addEventListener("pointerdown", function(event) {
         lastPointerX = event.pageX;
         lastPointerY = event.pageY;
 
@@ -128,6 +130,12 @@ window.addEventListener("load", async function() {
         ));
 
         draggingThing?.bringToFront();
+    });
+
+    workspace.addEventListener("touchstart", function(event) {
+        if (draggingThing) {
+            event.preventDefault();
+        }        
     });
 
     document.body.addEventListener("pointermove", function(event) {

@@ -2,6 +2,22 @@ import * as ns from "./script.js";
 
 export var nextZ = 1;
 
+function getIoModeColour(ioMode) {
+    if (!ns.showIoModeInput?.checked) {
+        return "#555555";
+    }
+
+    if (ioMode == "input") {
+        return "#0000ff";
+    }
+
+    if (ioMode == "output") {
+        return "#ff0000";
+    }
+
+    return "#555555";
+}
+
 export class Block {
     constructor(value, bg = "#777777", fg = "#ffffff") {
         this.value = value;
@@ -54,6 +70,7 @@ export class ControllerBlock extends Block {
         super("", "#cccccc");
 
         this.downstreamBlock = null;
+        this.downstreamIoMode = "output";
     }
 
     get width() {
@@ -65,7 +82,7 @@ export class ControllerBlock extends Block {
     }
 
     render() {
-        ns.setColour("#555555");
+        ns.setColour(getIoModeColour(this.downstreamIoMode));
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
 
         super.render();
@@ -102,7 +119,9 @@ export class CommandBlock extends Block {
         super(value, bg, fg);
 
         this.upstreamBlock = null;
+        this.upstreamIoMode = "input";
         this.downstreamBlock = null;
+        this.downstreamIoMode = "output";
     }
 
     get renderedY() {
@@ -126,8 +145,9 @@ export class CommandBlock extends Block {
             );
         }
 
-        ns.setColour("#555555");
+        ns.setColour(getIoModeColour(this.upstreamIoMode));
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY - 4, 40, 8, this.upstreamBlock ? 0 : 4);
+        ns.setColour(getIoModeColour(this.downstreamIoMode));
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
 
         super.render();
@@ -191,10 +211,11 @@ export class CommandBlockWithArguments extends CommandBlock {
         super(value, bg, fg);
 
         this.firstArgumentBlock = null;
+        this.firstArgumentIoMode = "output";
     }
 
     render() {
-        ns.setColour("#555555");
+        ns.setColour(getIoModeColour(this.firstArgumentIoMode));
         ns.fillRoundedRect(this.renderedX + this.width - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.firstArgumentBlock ? 0 : 4);
 
         super.render();
@@ -225,7 +246,9 @@ export class ArgumentBlock extends Block {
         super(value, bg, fg);
 
         this.upstreamBlock = null;
+        this.upstreamIoMode = "input";
         this.downstreamBlock = null;
+        this.downstreamIoMode = "output";
     }
 
     get renderedX() {
@@ -257,8 +280,9 @@ export class ArgumentBlock extends Block {
             );
         }
 
-        ns.setColour("#555555");
+        ns.setColour(getIoModeColour(this.upstreamIoMode));
         ns.fillRoundedRect(this.renderedX - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.upstreamBlock ? 0 : 4);
+        ns.setColour(getIoModeColour(this.downstreamIoMode));
         ns.fillRoundedRect(this.renderedX + this.width - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.downstreamBlock ? 0 : 4);
 
         super.render();

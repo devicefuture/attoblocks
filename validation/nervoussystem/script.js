@@ -6,6 +6,7 @@ export var explodedViewInput = null;
 export var explosionLevel = 0;
 export var lastExplosionViewState = false;
 export var explosionAnimationTime = 0;
+export var showIoModeInput = null;
 export var things = [];
 
 export var draggingThing = null;
@@ -103,6 +104,7 @@ window.addEventListener("load", async function() {
 
     workspace = document.querySelector("#workspace");
     explodedViewInput = document.querySelector("#explodedView");
+    showIoModeInput = document.querySelector("#showIoMode");
     context = workspace.getContext("2d");
 
     render();

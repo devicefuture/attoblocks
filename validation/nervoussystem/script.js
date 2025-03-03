@@ -1,14 +1,19 @@
 import * as factory from "./factory.js";
 
 export var workspace = null;
-export var explodedViewInput = null;
 export var context = null;
+export var explodedViewInput = null;
+export var explosionLevel = 0;
+export var lastExplosionViewState = false;
+export var explosionAnimationTime = 0;
 export var things = [];
 
 export var draggingThing = null;
 
 var lastPointerX = 0;
 var lastPointerY = 0;
+
+var ease = (t) => t < 0.5 ? 2 * Math.pow(t, 2) : -1 + ((4 - (2 * t)) * t);
 
 export function setColour(colour) {
     context.fillStyle = colour;
@@ -59,6 +64,19 @@ export function fillRoundedRect(x, y, width, height, radius) {
 function render() {
     var maxWorkspaceWidth = window.innerWidth - 10;
     var maxWorkspaceHeight = window.innerHeight - 10;
+
+    if (explodedViewInput.checked != lastExplosionViewState) {
+        explosionAnimationTime = Date.now();
+        lastExplosionViewState = explodedViewInput.checked;
+    }
+
+    var explosionProgress = ease(Math.min(Math.max(Date.now() - explosionAnimationTime, 0) / 1000, 1));
+
+    if (explodedViewInput.checked) {
+        explosionLevel = explosionProgress;
+    } else {
+        explosionLevel = 1 - explosionProgress;
+    }
 
     for (var thing of things) {
         if (thing.renderedX + thing.width + 10 > maxWorkspaceWidth) {
@@ -122,12 +140,14 @@ window.addEventListener("load", async function() {
         lastPointerX = event.pageX;
         lastPointerY = event.pageY;
 
-        draggingThing = [...things].sort((a, b) => b.z - a.z).find((thing) => (
-            event.pageX >= thing.renderedX &&
-            event.pageY >= thing.renderedY &&
-            event.pageX < thing.renderedX + thing.width &&
-            event.pageY < thing.renderedY + thing.height
-        ));
+        if (!explodedViewInput.checked) {
+            draggingThing = [...things].sort((a, b) => b.z - a.z).find((thing) => (
+                event.pageX >= thing.renderedX &&
+                event.pageY >= thing.renderedY &&
+                event.pageX < thing.renderedX + thing.width &&
+                event.pageY < thing.renderedY + thing.height
+            ));
+        }
 
         draggingThing?.bringToFront();
     });

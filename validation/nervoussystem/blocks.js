@@ -105,7 +105,27 @@ export class CommandBlock extends Block {
         this.downstreamBlock = null;
     }
 
+    get renderedY() {
+        if (ns.explosionLevel > 0 && this.upstreamBlock) {
+            return this.upstreamBlock.renderedY + this.upstreamBlock.height + 8 + (ns.explosionLevel * 60);
+        }
+
+        return super.renderedY;
+    }
+
     render() {
+        if (this.upstreamBlock) {
+            ns.setColour("#777777");
+
+            ns.fillRoundedRect(
+                this.renderedX + 14,
+                this.upstreamBlock.renderedY + this.upstreamBlock.height + 4,
+                36,
+                this.renderedY - this.upstreamBlock.renderedY - this.upstreamBlock.height - 8,
+                0
+            );
+        }
+
         ns.setColour("#555555");
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY - 4, 40, 8, this.upstreamBlock ? 0 : 4);
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
@@ -208,7 +228,35 @@ export class ArgumentBlock extends Block {
         this.downstreamBlock = null;
     }
 
+    get renderedX() {
+        if (ns.explosionLevel > 0 && this.upstreamBlock) {
+            return this.upstreamBlock.renderedX + this.upstreamBlock.width + 8 + (ns.explosionLevel * 60);
+        }
+
+        return super.renderedX;
+    }
+
+    get renderedY() {
+        if (ns.explosionLevel > 0 && this.upstreamBlock) {
+            return this.upstreamBlock.renderedY;
+        }
+
+        return super.renderedY;
+    }
+
     render() {
+        if (this.upstreamBlock) {
+            ns.setColour("#777777");
+
+            ns.fillRoundedRect(
+                this.upstreamBlock.renderedX + this.upstreamBlock.width + 4,
+                this.renderedY + ((this.height - 36) / 2),
+                this.renderedX - this.upstreamBlock.renderedX - this.upstreamBlock.width - 8,
+                36,
+                0
+            );
+        }
+
         ns.setColour("#555555");
         ns.fillRoundedRect(this.renderedX - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.upstreamBlock ? 0 : 4);
         ns.fillRoundedRect(this.renderedX + this.width - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.downstreamBlock ? 0 : 4);

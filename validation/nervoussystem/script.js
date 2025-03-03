@@ -8,11 +8,14 @@ export var lastExplosionViewState = false;
 export var explosionAnimationTime = 0;
 export var showIoModeInput = null;
 export var things = [];
-
 export var draggingThing = null;
+export var tickSpeedInput = null;
+export var currentTick = 0;
+export var lastTickAt = 0;
 
 var lastPointerX = 0;
 var lastPointerY = 0;
+var nextTickCallbacks = [];
 
 var ease = (t) => t < 0.5 ? 2 * Math.pow(t, 2) : -1 + ((4 - (2 * t)) * t);
 
@@ -62,6 +65,14 @@ export function fillRoundedRect(x, y, width, height, radius) {
     context.fill();
 }
 
+export function tickProgress() {
+    return Math.min(Math.max((Date.now() - lastTickAt) / (tickSpeedInput.value * 10), 0), 1);
+}
+
+export function onNextTick(callback) {
+    nextTickCallbacks.push(callback);
+}
+
 function render() {
     var maxWorkspaceWidth = window.innerWidth - 10;
     var maxWorkspaceHeight = window.innerHeight - 10;
@@ -77,6 +88,15 @@ function render() {
         explosionLevel = explosionProgress;
     } else {
         explosionLevel = 1 - explosionProgress;
+    }
+
+    if (Date.now() - lastTickAt > tickSpeedInput.value * 10) {
+        currentTick++;
+        lastTickAt = Date.now();
+
+        nextTickCallbacks.forEach((callback) => callback());
+
+        nextTickCallbacks = [];
     }
 
     for (var thing of things) {
@@ -105,6 +125,7 @@ window.addEventListener("load", async function() {
     workspace = document.querySelector("#workspace");
     explodedViewInput = document.querySelector("#explodedView");
     showIoModeInput = document.querySelector("#showIoMode");
+    tickSpeedInput = document.querySelector("#tickSpeed");
     context = workspace.getContext("2d");
 
     render();

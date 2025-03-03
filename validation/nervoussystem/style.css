@@ -10,7 +10,7 @@ html, body {
     margin: 0;
 }
 
-body {
+body, button, input {
     font-family: "Lexend Deca";
 }
 
@@ -21,6 +21,7 @@ header {
     left: 0;
     width: 100%;
     padding: 0.5rem;
+    gap: 0.25rem;
     background-color: rgb(238, 238, 238);
 }
 

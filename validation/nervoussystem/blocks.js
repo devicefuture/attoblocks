@@ -3,7 +3,7 @@ import * as ns from "./script.js";
 export var nextZ = 1;
 
 function getIoModeColour(ioMode) {
-    if (!ns.showIoModeInput?.checked) {
+    if (!ns.showIoModeInput.checked) {
         return "#555555";
     }
 
@@ -18,6 +18,27 @@ function getIoModeColour(ioMode) {
     return "#555555";
 }
 
+export class Message {
+    constructor(sender, recipient, type, data) {
+        this.sender = sender;
+        this.recipient = recipient;
+        this.type = type;
+        this.data = data;
+    }
+}
+
+export class IoSendError extends Error {
+    constructor() {
+        super("Cannot send message due to IO configuration");
+    }
+}
+
+export class IoReceiveError extends Error {
+    constructor() {
+        super("Cannot receive message ddue to IO configuration");
+    }
+}
+
 export class Block {
     constructor(value, bg = "#777777", fg = "#ffffff") {
         this.value = value;
@@ -27,6 +48,8 @@ export class Block {
         this.x = 0;
         this.y = 0;
         this.z = 0;
+
+        this.outbox = [];
     }
 
     get renderedX() {
@@ -63,6 +86,26 @@ export class Block {
     }
 
     drop() {}
+
+    handleMessage(message) {}
+
+    sendMessage(recipient, type, data) {
+        if (this.outbox.find((message) => message.recipient == recipient)) {
+            throw new Error("Message is already beign sent to recipient");
+        }
+
+        this.outbox.push(new Message(this, recipient, type, data));
+
+        if (this.outbox.length == 0) {
+            ns.onNextTick(() => {
+                for (var message of this.outbox) {
+                    message.recipient.handleMessage(message);
+                }
+
+                this.outbox = [];
+            });
+        }
+    }
 }
 
 export class ControllerBlock extends Block {
@@ -111,6 +154,20 @@ export class ControllerBlock extends Block {
         super.drag(deltaX, deltaY);
 
         this.downstreamBlock?.drag(deltaX, deltaY, byUser = false);
+    }
+
+    handleMessage(message) {
+        if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+    }
+
+    sendMessage(recipient, type, data) {
+        if (recipient == this.downstreamBlock && this.downstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        super.sendMessage(recipient, type, data);
     }
 }
 
@@ -204,6 +261,28 @@ export class CommandBlock extends Block {
             }
         }
     }
+
+    handleMessage(message) {
+        if (message.sender == this.upstreamBlock && this.upstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+
+        if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+    }
+
+    sendMessage(recipient, type, data) {
+        if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        if (recipient == this.downstreamBlock && this.downstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        super.sendMessage(recipient, type, data);
+    }
 }
 
 export class CommandBlockWithArguments extends CommandBlock {
@@ -238,6 +317,36 @@ export class CommandBlockWithArguments extends CommandBlock {
         super.drag(deltaX, deltaY, byUser);
 
         this.firstArgumentBlock?.drag(deltaX, deltaY, false);
+    }
+
+    handleMessage(message) {
+        if (message.sender == this.upstreamBlock && this.upstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+
+        if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+
+        if (message.sender == this.firstArgumentBlock && this.firstArgumentIoMode != "input") {
+            throw new IoReceiveError();
+        }
+    }
+
+    sendMessage(recipient, type, data) {
+        if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        if (recipient == this.downstreamBlock && this.downstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        if (recipient == this.firstArgumentBlock && this.firstArgumentIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        super.sendMessage(recipient, type, data);
     }
 }
 
@@ -351,5 +460,27 @@ export class ArgumentBlock extends Block {
                 break;
             }
         }
+    }
+
+    handleMessage(message) {
+        if (message.sender == this.upstreamBlock && this.upstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+
+        if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
+            throw new IoReceiveError();
+        }
+    }
+
+    sendMessage(recipient, type, data) {
+        if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        if (recipient == this.downstreamBlock && this.downstreamIoMode != "output") {
+            throw new IoSendError();
+        }
+
+        super.sendMessage(recipient, type, data);
     }
 }

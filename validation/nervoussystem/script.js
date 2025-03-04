@@ -1,3 +1,4 @@
+import * as blocks from "./blocks.js";
 import * as factory from "./factory.js";
 
 export var workspace = null;
@@ -16,8 +17,35 @@ export var lastTickAt = 0;
 var lastPointerX = 0;
 var lastPointerY = 0;
 var nextTickCallbacks = [];
+var tickTimers = [];
 
 var ease = (t) => t < 0.5 ? 2 * Math.pow(t, 2) : -1 + ((4 - (2 * t)) * t);
+
+export class TickTimer {
+    constructor(callback) {
+        this.callback = callback;
+
+        this.triggerAt = null;
+
+        tickTimers.push(this);
+    }
+
+    set(duration) {
+        this.triggerAt = currentTick + duration;
+    }
+
+    clear() {
+        this.triggerAt = null;
+    }
+}
+
+export function lerp(v0, v1, t) {
+    return (v0 * (1 - t)) + (v1 * t);
+}
+
+export function invLerp(v0, v1, v) {
+    return (v - v0) / (v1 - v0);
+}
 
 export function setColour(colour) {
     context.fillStyle = colour;
@@ -66,7 +94,7 @@ export function fillRoundedRect(x, y, width, height, radius) {
 }
 
 export function tickProgress() {
-    return Math.min(Math.max((Date.now() - lastTickAt) / (tickSpeedInput.value * 10), 0), 1);
+    return Math.min(Math.max((Date.now() - lastTickAt) / ((100 - tickSpeedInput.value) * 10), 0), 1);
 }
 
 export function onNextTick(callback) {
@@ -90,13 +118,29 @@ function render() {
         explosionLevel = 1 - explosionProgress;
     }
 
-    if (Date.now() - lastTickAt > tickSpeedInput.value * 10) {
+    if (Date.now() - lastTickAt > (100 - tickSpeedInput.value) * 10) {
         currentTick++;
         lastTickAt = Date.now();
 
-        nextTickCallbacks.forEach((callback) => callback());
+        var currentTickCallbacks = [...nextTickCallbacks];
 
         nextTickCallbacks = [];
+
+        for (var callback of currentTickCallbacks) {
+            try {
+                callback();
+            } catch (error) {
+                console.warn(error);
+            }
+        }
+
+        for (var callback of tickTimers.filter((timer) => timer.triggerAt == currentTick).map((timer) => timer.callback)) {
+            try {
+                callback();
+            } catch (error) {
+                console.warn(error);
+            }
+        }
     }
 
     for (var thing of things) {
@@ -112,8 +156,14 @@ function render() {
     workspace.width = maxWorkspaceWidth;
     workspace.height = maxWorkspaceHeight;
 
-    for (var thing of [...things].sort((a, b) => a.z - b.z)) {
+    var sortedThings = [...things].sort((a, b) => a.z - b.z);
+
+    for (var thing of sortedThings) {
         thing.render();
+    }
+
+    for (var thing of sortedThings.filter((thing) => thing instanceof blocks.Block)) {
+        thing.renderMessages();
     }
 
     requestAnimationFrame(render);
@@ -146,7 +196,7 @@ window.addEventListener("load", async function() {
     block1.y = 100;
 
     block1.moveDownstreamsUnderSelf();
-    
+
     var block2 = factory.processTokenList([
         "for", "i", "=", "1", "to", "1", "0", "step", "2",
         "right", "1", "0", "-", "i",
@@ -163,14 +213,15 @@ window.addEventListener("load", async function() {
         lastPointerX = event.pageX;
         lastPointerY = event.pageY;
 
-        if (!explodedViewInput.checked) {
+        // if (!explodedViewInput.checked) {
             draggingThing = [...things].sort((a, b) => b.z - a.z).find((thing) => (
+                (!explodedViewInput.checked || thing instanceof blocks.ControllerBlock) &&
                 event.pageX >= thing.renderedX &&
                 event.pageY >= thing.renderedY &&
                 event.pageX < thing.renderedX + thing.width &&
                 event.pageY < thing.renderedY + thing.height
             ));
-        }
+        // }
 
         draggingThing?.bringToFront();
     });
@@ -194,6 +245,14 @@ window.addEventListener("load", async function() {
         draggingThing?.drop();
 
         draggingThing = null;
+    });
+
+    document.querySelector("#pollButton").addEventListener("click", function() {
+        for (var thing of things) {
+            if (thing instanceof blocks.ControllerBlock) {
+                thing.poll();
+            }
+        }
     });
 });
 

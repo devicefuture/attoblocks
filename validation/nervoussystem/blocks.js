@@ -25,6 +25,38 @@ export class Message {
         this.type = type;
         this.data = data;
     }
+
+    render(x, y) {
+        ns.context.globalAlpha = ns.explosionLevel;
+
+        var lines = [
+            this.type,
+            ...Object.keys(this.data).map((key) => `${key}: ${this.data[key]}`)
+        ];
+
+        var maxLineWidth = 0;
+        var lineHeight = ns.textMetrics(lines[0]).fontBoundingBoxDescent;
+
+        for (var line of lines) {
+            maxLineWidth = Math.max(ns.textMetrics(line).width, maxLineWidth);
+        }
+
+        ns.setColour("#aaaaaa");
+        ns.fillRoundedRect(x, y, 8, 8, 0);
+        ns.setColour("#cccccc");
+        ns.fillRoundedRect(x, y, maxLineWidth + 8, (lineHeight * lines.length) + 8, 8);
+        ns.drawRoundedRect(x, y, maxLineWidth + 8, (lineHeight * lines.length) + 8, 8);
+        ns.setColour("#aaaaaa");
+        ns.drawRoundedRect(x, y, maxLineWidth + 8, (lineHeight * lines.length) + 8, 8);
+
+        ns.setColour("#000000");
+
+        for (var i = 0; i < lines.length; i++) {
+            ns.drawText(lines[i], x + 4, y + 4 + (lineHeight * i));
+        }
+
+        ns.context.globalAlpha = 1;
+    }
 }
 
 export class IoSendError extends Error {
@@ -35,7 +67,7 @@ export class IoSendError extends Error {
 
 export class IoReceiveError extends Error {
     constructor() {
-        super("Cannot receive message ddue to IO configuration");
+        super("Cannot receive message due to IO configuration");
     }
 }
 
@@ -76,6 +108,8 @@ export class Block {
         ns.drawText(this.value, this.renderedX + 6, this.renderedY + 6, 3);
     }
 
+    renderMessages() {}
+
     bringToFront() {
         this.z = nextZ++;
     }
@@ -89,14 +123,18 @@ export class Block {
 
     handleMessage(message) {}
 
-    sendMessage(recipient, type, data) {
+    sendMessage(recipient, type, data = {}) {
+        if (!recipient) {
+            return;
+        }
+
         if (this.outbox.find((message) => message.recipient == recipient)) {
-            throw new Error("Message is already beign sent to recipient");
+            throw new Error("Message is already being sent to recipient");
         }
 
         this.outbox.push(new Message(this, recipient, type, data));
 
-        if (this.outbox.length == 0) {
+        if (this.outbox.length == 1) {
             ns.onNextTick(() => {
                 for (var message of this.outbox) {
                     message.recipient.handleMessage(message);
@@ -114,6 +152,10 @@ export class ControllerBlock extends Block {
 
         this.downstreamBlock = null;
         this.downstreamIoMode = "output";
+
+        this.resetTimer = new ns.TickTimer(() => {
+            this.downstreamIoMode = "output";
+        });
     }
 
     get width() {
@@ -125,6 +167,18 @@ export class ControllerBlock extends Block {
     }
 
     render() {
+        if (this.downstreamBlock) {
+            ns.setColour("#777777");
+
+            ns.fillRoundedRect(
+                this.renderedX + 14,
+                this.renderedY + this.height + 4,
+                36,
+                this.downstreamBlock.renderedY - this.renderedY - this.height,
+                0
+            );
+        }
+
         ns.setColour(getIoModeColour(this.downstreamIoMode));
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
 
@@ -137,6 +191,14 @@ export class ControllerBlock extends Block {
             ns.setColour("#777777");
             ns.fillRoundedRect(this.renderedX + 24 + (i * 48), this.renderedY + 28, 32, 32, 16);
             ns.drawText(["run", "stop", "speed", "step", "link"][i], this.renderedX + 24 + (i * 48), this.renderedY + 64, 0.8);
+        }
+    }
+
+    renderMessages() {
+        for (var message of this.outbox) {
+            if (message.recipient == this.downstreamBlock && this.downstreamBlock) {
+                message.render(this.renderedX + 32, ns.lerp(this.renderedY + this.height + 4, this.downstreamBlock.renderedY - 4, ns.tickProgress()));
+            }
         }
     }
 
@@ -160,14 +222,24 @@ export class ControllerBlock extends Block {
         if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
             throw new IoReceiveError();
         }
+
+        this.resetTimer.set(4);
     }
 
-    sendMessage(recipient, type, data) {
+    sendMessage(recipient, type, data = undefined) {
         if (recipient == this.downstreamBlock && this.downstreamIoMode != "output") {
             throw new IoSendError();
         }
 
         super.sendMessage(recipient, type, data);
+    }
+
+    poll() {
+        this.sendMessage(this.downstreamBlock, "discovery");
+
+        this.downstreamIoMode = "input";
+
+        this.resetTimer.set(4);
     }
 }
 
@@ -179,6 +251,11 @@ export class CommandBlock extends Block {
         this.upstreamIoMode = "input";
         this.downstreamBlock = null;
         this.downstreamIoMode = "output";
+
+        this.resetTimer = new ns.TickTimer(() => {
+            this.upstreamIoMode = "input";
+            this.downstreamIoMode = "output";
+        });
     }
 
     get renderedY() {
@@ -190,14 +267,14 @@ export class CommandBlock extends Block {
     }
 
     render() {
-        if (this.upstreamBlock) {
+        if (this.downstreamBlock) {
             ns.setColour("#777777");
 
             ns.fillRoundedRect(
                 this.renderedX + 14,
-                this.upstreamBlock.renderedY + this.upstreamBlock.height + 4,
+                this.renderedY + this.height + 4,
                 36,
-                this.renderedY - this.upstreamBlock.renderedY - this.upstreamBlock.height - 8,
+                this.downstreamBlock.renderedY - this.renderedY - this.height,
                 0
             );
         }
@@ -208,6 +285,18 @@ export class CommandBlock extends Block {
         ns.fillRoundedRect(this.renderedX + 12, this.renderedY + this.height - 4, 40, 8, this.downstreamBlock ? 0 : 4);
 
         super.render();
+    }
+
+    renderMessages() {
+        for (var message of this.outbox) {
+            if (message.recipient == this.upstreamBlock && this.upstreamBlock) {
+                message.render(this.renderedX + 32, ns.lerp(this.renderedY - 4, this.upstreamBlock.renderedY + this.upstreamBlock.height + 4, ns.tickProgress()));
+            }
+
+            if (message.recipient == this.downstreamBlock && this.downstreamBlock) {
+                message.render(this.renderedX + 32, ns.lerp(this.renderedY + this.height + 4, this.downstreamBlock.renderedY - 4, ns.tickProgress()));
+            }
+        }
     }
 
     moveUnder(block) {
@@ -270,9 +359,24 @@ export class CommandBlock extends Block {
         if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
             throw new IoReceiveError();
         }
+
+        this.resetTimer.set(4);
+
+        if (message.type == "discovery") {
+            this.upstreamIoMode = "output";
+
+            this.sendMessage(this.downstreamBlock, "discovery");
+            this.sendMessage(this.upstreamBlock, "reporting", {value: this.value});
+
+            this.downstreamIoMode = "input";
+        }
+
+        if (["reporting", "argumentCompletion"].includes(message.type)) {
+            this.sendMessage(this.upstreamBlock, message.type, message.data);
+        }
     }
 
-    sendMessage(recipient, type, data) {
+    sendMessage(recipient, type, data = undefined) {
         if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
             throw new IoSendError();
         }
@@ -291,13 +395,50 @@ export class CommandBlockWithArguments extends CommandBlock {
 
         this.firstArgumentBlock = null;
         this.firstArgumentIoMode = "output";
+
+        this.argumentCompletionTimer = new ns.TickTimer(() => {
+            this.firstArgumentIoMode = "output";
+            
+            this.sendMessage(this.upstreamBlock, "argumentCompletion");
+            this.sendMessage(this.downstreamBlock, "discovery");
+
+            this.downstreamIoMode = "input";
+        });
+
+        this.resetTimer = new ns.TickTimer(() => {
+            this.upstreamIoMode = "input";
+            this.downstreamIoMode = "output";
+            this.firstArgumentIoMode = "output";
+        });
     }
 
     render() {
+        if (this.firstArgumentBlock) {
+            ns.setColour("#777777");
+
+            ns.fillRoundedRect(
+                this.renderedX + this.width + 4,
+                this.renderedY + ((this.height - 36) / 2),
+                this.firstArgumentBlock.renderedX - this.renderedX - this.width,
+                36,
+                0
+            );
+        }
+
         ns.setColour(getIoModeColour(this.firstArgumentIoMode));
         ns.fillRoundedRect(this.renderedX + this.width - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.firstArgumentBlock ? 0 : 4);
 
         super.render();
+    }
+
+    renderMessages() {
+        super.renderMessages();
+
+        for (var message of this.outbox) {
+            if (message.recipient == this.firstArgumentBlock && this.firstArgumentBlock) {
+                message.render(ns.lerp(this.renderedX + this.width + 4, this.firstArgumentBlock.renderedX - 4, ns.tickProgress()), this.renderedY + (this.height / 2));
+            }
+        }
     }
 
     moveDownstreamsUnderSelf() {
@@ -331,9 +472,30 @@ export class CommandBlockWithArguments extends CommandBlock {
         if (message.sender == this.firstArgumentBlock && this.firstArgumentIoMode != "input") {
             throw new IoReceiveError();
         }
+
+        this.resetTimer.set(4);
+
+        if (message.type == "discovery") {
+            this.upstreamIoMode = "output";
+
+            this.sendMessage(this.firstArgumentBlock, "discovery");
+            this.sendMessage(this.upstreamBlock, "reporting", {value: this.value});
+
+            this.firstArgumentIoMode = "input";
+
+            this.argumentCompletionTimer.set(2);
+        }
+
+        if (["reporting", "argumentCompletion"].includes(message.type)) {
+            this.sendMessage(this.upstreamBlock, message.type, message.data);
+
+            if (message.sender == this.firstArgumentBlock) {
+                this.argumentCompletionTimer.set(2);
+            }
+        }
     }
 
-    sendMessage(recipient, type, data) {
+    sendMessage(recipient, type, data = undefined) {
         if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
             throw new IoSendError();
         }
@@ -358,6 +520,11 @@ export class ArgumentBlock extends Block {
         this.upstreamIoMode = "input";
         this.downstreamBlock = null;
         this.downstreamIoMode = "output";
+
+        this.resetTimer = new ns.TickTimer(() => {
+            this.upstreamIoMode = "input";
+            this.downstreamIoMode = "output";
+        });
     }
 
     get renderedX() {
@@ -377,13 +544,13 @@ export class ArgumentBlock extends Block {
     }
 
     render() {
-        if (this.upstreamBlock) {
+        if (this.downstreamBlock) {
             ns.setColour("#777777");
 
             ns.fillRoundedRect(
-                this.upstreamBlock.renderedX + this.upstreamBlock.width + 4,
+                this.renderedX + this.width + 4,
                 this.renderedY + ((this.height - 36) / 2),
-                this.renderedX - this.upstreamBlock.renderedX - this.upstreamBlock.width - 8,
+                this.downstreamBlock.renderedX - this.renderedX - this.width,
                 36,
                 0
             );
@@ -395,6 +562,18 @@ export class ArgumentBlock extends Block {
         ns.fillRoundedRect(this.renderedX + this.width - 4, this.renderedY + ((this.height - 40) / 2), 8, 40, this.downstreamBlock ? 0 : 4);
 
         super.render();
+    }
+
+    renderMessages() {
+        for (var message of this.outbox) {
+            if (message.recipient == this.upstreamBlock && this.upstreamBlock) {
+                message.render(ns.lerp(this.renderedX - 4, this.upstreamBlock.renderedX + this.upstreamBlock.width + 4, ns.tickProgress()), this.renderedY + (this.height / 2));
+            }
+
+            if (message.recipient == this.downstreamBlock && this.downstreamBlock) {
+                message.render(ns.lerp(this.renderedX + this.width + 4, this.downstreamBlock.renderedX - 4, ns.tickProgress()), this.renderedY + (this.height / 2));
+            }
+        }
     }
 
     moveUnder(block) {
@@ -470,9 +649,24 @@ export class ArgumentBlock extends Block {
         if (message.sender == this.downstreamBlock && this.downstreamIoMode != "input") {
             throw new IoReceiveError();
         }
+
+        this.resetTimer.set(4);
+
+        if (message.type == "discovery") {
+            this.upstreamIoMode = "output";
+
+            this.sendMessage(this.downstreamBlock, "discovery");
+            this.sendMessage(this.upstreamBlock, "reporting", {value: this.value});
+
+            this.downstreamIoMode = "input";
+        }
+
+        if (["reporting"].includes(message.type)) {
+            this.sendMessage(this.upstreamBlock, message.type, message.data);
+        }
     }
 
-    sendMessage(recipient, type, data) {
+    sendMessage(recipient, type, data = undefined) {
         if (recipient == this.upstreamBlock && this.upstreamIoMode != "output") {
             throw new IoSendError();
         }
